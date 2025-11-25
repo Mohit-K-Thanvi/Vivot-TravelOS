@@ -232,9 +232,171 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // -----------------------------------------------------------------
-  // DISCOVERIES, CHAT, MOOD, PIVOT, ADAPT (unchanged from previous version)
+  // DISCOVERIES
   // -----------------------------------------------------------------
-  // ... (the rest of the file remains as previously defined)
+  app.get("/api/discoveries/featured", async (req, res) => {
+    try {
+      const discoveries = await storage.getFeaturedDiscoveries();
+      res.json(discoveries);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch featured discoveries" });
+    }
+  });
+
+  app.get("/api/discoveries", async (req, res) => {
+    try {
+      const discoveries = await storage.getAllDiscoveries();
+      res.json(discoveries);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch discoveries" });
+    }
+  });
+
+  // -----------------------------------------------------------------
+  // CHAT & AI PLANNING
+  // -----------------------------------------------------------------
+  app.post("/api/chat/send", async (req, res) => {
+    try {
+      const { content } = req.body;
+
+      // 1. Save User Message
+      await storage.createChatMessage({
+        role: "user",
+        content,
+        tripId: null, // Context could be added here
+      });
+
+      // 2. Generate AI Response
+      const result = await generateTripItinerary(content);
+
+      // 3. Save AI Response
+      await storage.createChatMessage({
+        role: "assistant",
+        content: result.response,
+        tripId: null,
+      });
+
+      // 4. If a trip was generated, save it to DB
+      if (result.trip) {
+        const trip = await storage.createTrip({
+          destination: result.trip.destination,
+          startDate: result.trip.startDate,
+          endDate: result.trip.endDate,
+          budget: result.trip.budget,
+          coordinates: result.trip.coordinates,
+          imageUrl: null,
+          userId: DEFAULT_USER_ID,
+        });
+
+        // Save activities
+        for (const act of result.trip.activities) {
+          const activity = await storage.createActivity({
+            tripId: trip.id,
+            title: act.title,
+            description: act.description,
+            category: act.category,
+            location: act.location,
+            coordinates: act.coordinates,
+            time: act.time,
+            duration: act.duration,
+            cost: act.cost,
+            day: act.day,
+            orderIndex: act.orderIndex,
+            imageKeyword: act.imageKeyword,
+            energyLevelRequirement: "high",
+            isShadowOption: false,
+            completed: false,
+          });
+
+          // Save shadow option if exists
+          if (act.shadowOption) {
+            await storage.createActivity({
+              tripId: trip.id,
+              title: act.shadowOption.title,
+              description: act.shadowOption.description,
+              category: act.shadowOption.category,
+              location: act.shadowOption.location,
+              coordinates: act.shadowOption.coordinates,
+              time: act.shadowOption.time,
+              duration: act.shadowOption.duration,
+              cost: act.shadowOption.cost,
+              day: act.day,
+              orderIndex: act.orderIndex,
+              imageKeyword: null,
+              energyLevelRequirement: "low",
+              isShadowOption: true,
+              completed: false,
+              parentActivityId: activity.id,
+            });
+          }
+        }
+
+        return res.json({ ...result, trip });
+      }
+
+      res.json(result);
+    } catch (error) {
+      console.error("Chat error:", error);
+      res.status(500).json({ error: "Failed to process chat" });
+    }
+  });
+
+  // -----------------------------------------------------------------
+  // MOOD & PIVOT
+  // -----------------------------------------------------------------
+  app.post("/api/trips/:id/mood", async (req, res) => {
+    try {
+      const tripId = req.params.id;
+      const { energyLevel } = req.body;
+
+      await storage.createMoodReading({
+        tripId,
+        energyLevel,
+        userId: DEFAULT_USER_ID,
+      });
+
+      // Simple pivot logic: if energy is low, trigger pivot suggestion
+      const shouldPivot = energyLevel === "low";
+
+      res.json({ success: true, shouldPivot });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to record mood" });
+    }
+  });
+
+  app.post("/api/trips/:id/pivot", async (req, res) => {
+    try {
+      const tripId = req.params.id;
+      const { currentActivityId, location } = req.body;
+
+      const activity = await storage.getActivity(currentActivityId);
+      const trip = await storage.getTrip(tripId);
+
+      if (!activity || !trip) {
+        return res.status(404).json({ error: "Activity or Trip not found" });
+      }
+
+      const proposal = await generatePivotProposal(activity, {
+        location: location || activity.location,
+        time: new Date().toLocaleTimeString(),
+        budgetRemaining: trip.budget - trip.spent,
+        groupMood: "tired",
+      });
+
+      // Log the pivot
+      await storage.createPivotLog({
+        tripId,
+        previousActivityId: activity.id,
+        reason: "User requested pivot (Low Energy)",
+        triggeredBy: ""
+      });
+
+      res.json(proposal);
+    } catch (error) {
+      console.error("Pivot error:", error);
+      res.status(500).json({ error: "Failed to generate pivot" });
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;
