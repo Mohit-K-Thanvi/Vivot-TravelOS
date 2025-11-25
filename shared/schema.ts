@@ -3,6 +3,14 @@ import { pgTable, text, varchar, integer, timestamp, boolean, jsonb, real } from
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// Users
+export const users = pgTable("users", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  username: varchar("username").notNull().unique(),
+  password: varchar("password").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // User Preferences for AI learning
 export const userPreferences = pgTable("user_preferences", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -44,6 +52,9 @@ export const activities = pgTable("activities", {
   imageUrl: text("image_url"),
   orderIndex: integer("order_index").notNull(),
   completed: boolean("completed").default(false).notNull(),
+  isShadowOption: boolean("is_shadow_option").default(false).notNull(),
+  parentActivityId: varchar("parent_activity_id"), // ID of the main activity this shadows
+  energyLevelRequirement: varchar("energy_level_requirement").default("high"), // high, medium, low
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -95,7 +106,28 @@ export const journeyOptions = pgTable("journey_options", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Mood Readings (Silent Pulse)
+export const moodReadings = pgTable("mood_readings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tripId: varchar("trip_id").notNull(),
+  userId: varchar("user_id").notNull().default("default-user"),
+  energyLevel: varchar("energy_level").notNull(), // high, medium, low
+  timestamp: timestamp("timestamp").defaultNow().notNull(),
+});
+
+// Pivot Logs
+export const pivotLogs = pgTable("pivot_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tripId: varchar("trip_id").notNull(),
+  triggeredBy: varchar("triggered_by").notNull(), // user_consensus, manual
+  previousActivityId: varchar("previous_activity_id"),
+  newActivityId: varchar("new_activity_id"),
+  reason: text("reason"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Insert schemas
+export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });
 export const insertUserPreferencesSchema = createInsertSchema(userPreferences).omit({ id: true, updatedAt: true });
 export const insertTripSchema = createInsertSchema(trips).omit({ id: true, createdAt: true, spent: true, status: true });
 export const insertActivitySchema = createInsertSchema(activities).omit({ id: true, createdAt: true, completed: true });
@@ -103,8 +135,13 @@ export const insertDiscoverySchema = createInsertSchema(discoveries).omit({ id: 
 export const insertBudgetItemSchema = createInsertSchema(budgetItems).omit({ id: true, createdAt: true });
 export const insertChatMessageSchema = createInsertSchema(chatMessages).omit({ id: true, createdAt: true });
 export const insertJourneyOptionSchema = createInsertSchema(journeyOptions).omit({ id: true, createdAt: true });
+export const insertMoodReadingSchema = createInsertSchema(moodReadings).omit({ id: true, timestamp: true });
+export const insertPivotLogSchema = createInsertSchema(pivotLogs).omit({ id: true, createdAt: true });
 
 // Types
+export type User = typeof users.$inferSelect;
+export type InsertUser = z.infer<typeof insertUserSchema>;
+
 export type UserPreferences = typeof userPreferences.$inferSelect;
 export type InsertUserPreferences = z.infer<typeof insertUserPreferencesSchema>;
 
@@ -125,3 +162,9 @@ export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;
 
 export type JourneyOption = typeof journeyOptions.$inferSelect;
 export type InsertJourneyOption = z.infer<typeof insertJourneyOptionSchema>;
+
+export type MoodReading = typeof moodReadings.$inferSelect;
+export type InsertMoodReading = z.infer<typeof insertMoodReadingSchema>;
+
+export type PivotLog = typeof pivotLogs.$inferSelect;
+export type InsertPivotLog = z.infer<typeof insertPivotLogSchema>;

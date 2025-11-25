@@ -30,6 +30,15 @@ interface GeneratedTrip {
     location: string;
     cost: number;
     orderIndex: number;
+    shadowOption?: {
+      title: string;
+      description: string;
+      category: string;
+      time: string;
+      duration: string;
+      location: string;
+      cost: number;
+    };
   }>;
 }
 
@@ -68,7 +77,16 @@ If the user is requesting a trip plan, respond with a JSON object in this exact 
         "duration": "X hours",
         "location": "Specific location",
         "cost": number (in USD),
-        "orderIndex": 0
+        "orderIndex": 0,
+        "shadowOption": { // OPTIONAL: Only for high-energy/outdoor activities
+          "title": "Relaxed alternative (e.g. Spa, Cafe)",
+          "description": "Brief description of low-energy alternative",
+          "category": "activity|restaurant",
+          "time": "Same as main activity",
+          "duration": "Same or similar",
+          "location": "Nearby location (<5km)",
+          "cost": number
+        }
       }
     ]
   }
@@ -81,6 +99,7 @@ Create realistic, well-paced itineraries with:
 - Consideration for dietary restrictions
 - Activities matching interests
 - Appropriate pace (relaxed = 2-3 activities/day, moderate = 3-4, fast = 5+)
+- **Shadow Options**: For every high-energy or outdoor activity (hiking, long walking tours), ALWAYS provide a "shadowOption" that is low-energy (spa, museum, cafe) and nearby.
 
 If the user is just chatting or asking questions (not planning a trip), respond with just:
 {
@@ -162,5 +181,56 @@ Return a JSON object with inferred preferences:
   } catch (error) {
     console.error("Gemini API error:", error);
     return {};
+  }
+}
+
+export async function generatePivotProposal(
+  currentActivity: any,
+  context: { location: string; time: string; budgetRemaining: number; groupMood: string }
+): Promise<{
+  proposal: string;
+  newActivity: {
+    title: string;
+    description: string;
+    category: string;
+    location: string;
+    cost: number;
+    duration: string;
+  };
+}> {
+  const prompt = `The group is feeling ${context.groupMood} (tired/low energy). 
+  
+  Current planned activity: ${currentActivity.title} (${currentActivity.category}) at ${currentActivity.time}.
+  Location: ${context.location}
+  Budget Remaining: $${context.budgetRemaining}
+  
+  Generate a "Mood Pivot" proposal. Suggest a low-energy, relaxing alternative nearby.
+  
+  Return JSON:
+  {
+    "proposal": "Persuasive message proposing the change (e.g., 'It looks like a slow start! Let's swap the hike for a spa...')",
+    "newActivity": {
+      "title": "New Activity Name",
+      "description": "Description",
+      "category": "activity|restaurant|relaxation",
+      "location": "Address/Location",
+      "cost": number,
+      "duration": "Duration string"
+    }
+  }`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      config: {
+        responseMimeType: "application/json",
+      },
+      contents: prompt,
+    });
+
+    return JSON.parse(response.text || "{}");
+  } catch (error) {
+    console.error("Gemini API error:", error);
+    throw new Error("Failed to generate pivot proposal");
   }
 }

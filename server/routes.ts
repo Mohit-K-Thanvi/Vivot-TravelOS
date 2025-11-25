@@ -1,13 +1,15 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { generateTripItinerary, adaptItinerary } from "./gemini-service";
+import { generateTripItinerary, adaptItinerary, generatePivotProposal } from "./gemini-service";
 import {
   insertTripSchema,
   insertActivitySchema,
   insertBudgetItemSchema,
   insertUserPreferencesSchema,
   insertChatMessageSchema,
+  insertMoodReadingSchema,
+  insertPivotLogSchema,
 } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -17,7 +19,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/preferences", async (req, res) => {
     try {
       let prefs = await storage.getPreferences(DEFAULT_USER_ID);
-      
+
       if (!prefs) {
         prefs = await storage.createPreferences({
           userId: DEFAULT_USER_ID,
@@ -38,7 +40,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/preferences", async (req, res) => {
     try {
       const prefs = await storage.getPreferences(DEFAULT_USER_ID);
-      
+
       if (!prefs) {
         const created = await storage.createPreferences({
           userId: DEFAULT_USER_ID,
@@ -193,7 +195,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get user preferences for personalization
       const preferences = await storage.getPreferences(DEFAULT_USER_ID);
-      
+
       // Generate AI response
       const aiResponse = await generateTripItinerary(content, preferences || undefined);
 
@@ -210,7 +212,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Create all activities for the trip
         for (const activity of aiResponse.trip.activities) {
-          await storage.createActivity({
+          const mainActivity = await storage.createActivity({
             tripId: createdTrip.id,
             day: activity.day,
             title: activity.title,
@@ -221,7 +223,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
             location: activity.location,
             cost: activity.cost,
             orderIndex: activity.orderIndex,
+            isShadowOption: false,
+            energyLevelRequirement: "high", // Default to high for main activities
           });
+
+          // If shadow option exists, save it
+          if (activity.shadowOption) {
+            await storage.createActivity({
+              tripId: createdTrip.id,
+              day: activity.day,
+              title: activity.shadowOption.title,
+              description: activity.shadowOption.description,
+              category: activity.shadowOption.category,
+              time: activity.shadowOption.time,
+              duration: activity.shadowOption.duration,
+              location: activity.shadowOption.location,
+              cost: activity.shadowOption.cost,
+              orderIndex: activity.orderIndex,
+              isShadowOption: true,
+              parentActivityId: mainActivity.id,
+              energyLevelRequirement: "low",
+            });
+          }
         }
       }
 
@@ -242,18 +265,114 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Mood Pivot Routes
+  app.post("/api/trips/:id/mood", async (req, res) => {
+    try {
+      const validatedData = insertMoodReadingSchema.parse(req.body);
+      const reading = await storage.createMoodReading({
+        ...validatedData,
+        userId: DEFAULT_USER_ID,
+      });
+
+      // Check threshold (simplified for single user demo, but logic stands for group)
+      // In a real group app, we'd fetch all readings for this trip in the last hour
+      const recentReadings = await storage.getMoodReadings(req.params.id);
+      const lowEnergyCount = recentReadings.filter(r => r.energyLevel === 'low').length;
+      const totalReadings = recentReadings.length;
+
+      // If > 40% are low energy (or just the current user for this demo)
+      const shouldPivot = validatedData.energyLevel === 'low';
+
+      res.json({ reading, shouldPivot });
+    } catch (error) {
+      res.status(400).json({ error: "Invalid mood data" });
+    }
+  });
+
+  app.post("/api/trips/:id/pivot", async (req, res) => {
+    try {
+      const { currentActivityId, location, time, budgetRemaining } = req.body;
+      const currentActivity = await storage.getActivity(currentActivityId);
+
+      if (!currentActivity) {
+        return res.status(404).json({ error: "Activity not found" });
+      }
+
+      // Check if a shadow option already exists
+      const shadowActivities = await storage.getShadowActivities(req.params.id);
+      const prePlannedShadow = shadowActivities.find(a => a.parentActivityId === currentActivityId);
+
+      if (prePlannedShadow) {
+        return res.json({
+          proposal: "We have a relaxed alternative ready for you!",
+          newActivity: prePlannedShadow,
+          isPrePlanned: true
+        });
+      }
+
+      // If no shadow option, generate one on the fly
+      const pivotProposal = await generatePivotProposal(currentActivity, {
+        location,
+        time,
+        budgetRemaining,
+        groupMood: "low"
+      });
+
+      res.json({
+        ...pivotProposal,
+        isPrePlanned: false
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to generate pivot" });
+    }
+  });
+
+  app.post("/api/trips/:id/pivot/confirm", async (req, res) => {
+    try {
+      const { oldActivityId, newActivityData, reason } = req.body;
+
+      // 1. Mark old activity as cancelled (or delete, or move to history)
+      // For now, let's just update the old activity to be the new one
+      // In a real app, we might want to keep the old one as "cancelled"
+
+      const updatedActivity = await storage.updateActivity(oldActivityId, {
+        title: newActivityData.title,
+        description: newActivityData.description,
+        category: newActivityData.category,
+        location: newActivityData.location,
+        cost: newActivityData.cost,
+        duration: newActivityData.duration,
+        energyLevelRequirement: "low",
+        isShadowOption: false // It's now the main plan
+      });
+
+      // Log the pivot
+      await storage.createPivotLog({
+        tripId: req.params.id,
+        triggeredBy: "user_consensus",
+        previousActivityId: oldActivityId,
+        newActivityId: updatedActivity.id,
+        reason: reason || "Group energy low",
+      });
+
+      res.json(updatedActivity);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to confirm pivot" });
+    }
+  });
+
   // Itinerary adaptation
   app.post("/api/trips/:id/adapt", async (req, res) => {
     try {
       const { context } = req.body;
       const activities = await storage.getActivitiesByTrip(req.params.id);
-      
+
       const activitiesText = activities
         .map((a) => `${a.time} - ${a.title} at ${a.location}`)
         .join("\n");
 
       const suggestions = await adaptItinerary(activitiesText, context);
-      
+
       res.json({ suggestions });
     } catch (error) {
       res.status(500).json({ error: "Failed to generate suggestions" });
