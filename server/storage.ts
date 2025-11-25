@@ -171,6 +171,7 @@ export class MemStorage implements IStorage {
       id,
       userId: insertTrip.userId || "default-user",
       imageUrl: insertTrip.imageUrl || null,
+      coordinates: insertTrip.coordinates || null,
       spent: 0,
       status: "planning",
       createdAt: new Date(),
@@ -226,6 +227,8 @@ export class MemStorage implements IStorage {
       isShadowOption: insertActivity.isShadowOption ?? false,
       parentActivityId: insertActivity.parentActivityId ?? null,
       energyLevelRequirement: insertActivity.energyLevelRequirement ?? "high",
+      coordinates: insertActivity.coordinates || null,
+      imageKeyword: insertActivity.imageKeyword || null,
       createdAt: new Date(),
     };
     this.activities.set(id, activity);

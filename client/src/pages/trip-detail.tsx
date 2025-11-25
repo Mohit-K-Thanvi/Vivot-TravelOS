@@ -84,7 +84,7 @@ export default function TripDetail() {
   const dayActivities = activities?.filter((a) => a.day === selectedDay) || [];
   const totalDays = Math.ceil(
     (new Date(trip.endDate).getTime() - new Date(trip.startDate).getTime()) /
-      (1000 * 60 * 60 * 24)
+    (1000 * 60 * 60 * 24)
   ) + 1;
 
   const categoryTotals = budgetItems?.reduce((acc, item) => {
@@ -187,9 +187,9 @@ export default function TripDetail() {
                       data-testid={`activity-${activity.id}`}
                     >
                       <div className="flex flex-col md:flex-row">
-                        {activity.imageUrl && (
+                        {(activity.imageUrl || (activity as any).imageKeyword) && (
                           <img
-                            src={activity.imageUrl}
+                            src={activity.imageUrl || `https://loremflickr.com/800/600/${encodeURIComponent((activity as any).imageKeyword)}`}
                             alt={activity.title}
                             className="h-32 w-full object-cover md:h-auto md:w-32"
                           />
@@ -258,13 +258,29 @@ export default function TripDetail() {
           </TabsContent>
 
           {/* Map Tab */}
+          {/* Map Tab */}
           <TabsContent value="map">
-            <Card className="p-12 text-center">
-              <Map className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
-              <h3 className="mb-2 text-lg font-semibold">Interactive Map View</h3>
-              <p className="text-sm text-muted-foreground">
-                Map visualization with plotted destinations and routes coming soon
-              </p>
+            <Card className="h-[600px] w-full overflow-hidden p-0">
+              {(trip as any).coordinates ? (
+                <iframe
+                  width="100%"
+                  height="100%"
+                  frameBorder="0"
+                  scrolling="no"
+                  marginHeight={0}
+                  marginWidth={0}
+                  src={`https://www.openstreetmap.org/export/embed.html?bbox=${(trip as any).coordinates.lng - 0.05},${(trip as any).coordinates.lat - 0.05},${(trip as any).coordinates.lng + 0.05},${(trip as any).coordinates.lat + 0.05}&layer=mapnik&marker=${(trip as any).coordinates.lat},${(trip as any).coordinates.lng}`}
+                  className="h-full w-full"
+                ></iframe>
+              ) : (
+                <div className="flex h-full flex-col items-center justify-center p-12 text-center">
+                  <Map className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+                  <h3 className="mb-2 text-lg font-semibold">Map Unavailable</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Coordinates for this trip are missing.
+                  </p>
+                </div>
+              )}
             </Card>
           </TabsContent>
 
