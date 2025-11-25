@@ -132,10 +132,10 @@ export default function Home() {
 
         <div className="relative z-10 flex h-full flex-col items-center justify-center px-4 py-24 md:py-0">
           <div className="w-full max-w-4xl text-center mb-8">
-            <h1 className="mb-4 text-4xl font-bold tracking-tight text-white md:text-6xl drop-shadow-lg">
+            <h1 className="mb-4 text-2xl font-bold tracking-tight text-white md:text-6xl drop-shadow-lg">
               Where to next?
             </h1>
-            <p className="text-xl text-white/90 drop-shadow-md">
+            <p className="text-base md:text-xl text-white/90 drop-shadow-md">
               Experience the world with VIVOT's adaptive travel engine.
             </p>
           </div>
@@ -147,16 +147,16 @@ export default function Home() {
 
                 {/* ORIGIN */}
                 <div className="space-y-2">
-                  <Label htmlFor="origin" className="font-medium text-white">From</Label>
+                  <Label htmlFor="origin" className="font-medium text-white text-xs md:text-sm">From</Label>
 
                   <div className="relative">
                     <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/70" />
                     <Input
-                      id="destination"
+                      id="origin"
                       placeholder="e.g. Mumbai"
-                      className="pl-9 bg-transparent border-white/40 text-white placeholder:text-white/70"
-                      value={destination}
-                      onChange={(e) => setDestination(e.target.value)}
+                      className="pl-9 bg-transparent border-white/40 text-white placeholder:text-white/70 text-sm md:text-base"
+                      value={origin}
+                      onChange={(e) => setOrigin(e.target.value)}
                     />
                     {/* Right icon inside input */}
                     <button
@@ -174,7 +174,7 @@ export default function Home() {
 
                 {/* DESTINATION */}
                 <div className="space-y-2">
-                  <Label htmlFor="destination" className="font-medium text-white">To</Label>
+                  <Label htmlFor="destination" className="font-medium text-white text-xs md:text-sm">To</Label>
 
                   <div className="relative">
                     <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/70" />
@@ -182,7 +182,7 @@ export default function Home() {
                     <Input
                       id="destination"
                       placeholder="e.g. Pune"
-                      className="pl-9 bg-transparent border-white/40 text-white placeholder:text-white/70"
+                      className="pl-9 bg-transparent border-white/40 text-white placeholder:text-white/70 text-sm md:text-base"
                       value={destination}
                       onChange={(e) => setDestination(e.target.value)}
                     />
@@ -191,13 +191,13 @@ export default function Home() {
 
                 {/* DATE PICKER */}
                 <div className="space-y-2">
-                  <Label className="font-medium text-white">Dates</Label>
+                  <Label className="font-medium text-white text-xs md:text-sm">Dates</Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
                         className={cn(
-                          "w-full justify-start text-left font-normal border-white/40 bg-transparent text-white",
+                          "w-full justify-start text-left font-normal border-white/40 bg-transparent text-white text-sm md:text-base",
                           !date && "text-white/70"
                         )}
                       >
@@ -221,7 +221,7 @@ export default function Home() {
 
                 {/* BUDGET */}
                 <div className="space-y-2">
-                  <Label className="font-medium text-white">
+                  <Label className="font-medium text-white text-xs md:text-sm">
                     Budget: ${budget[0]}
                   </Label>
 
@@ -241,7 +241,7 @@ export default function Home() {
                 <div className="flex items-end">
                   <Button
                     size="lg"
-                    className="w-full bg-primary hover:bg-primary/90 text-white font-semibold shadow-lg hover:shadow-xl transition-all"
+                    className="w-full bg-primary hover:bg-primary/90 text-white font-semibold shadow-lg hover:shadow-xl transition-all text-sm md:text-base"
                     onClick={handlePlanTrip}
                     disabled={createTripMutation.isPending}
                   >
@@ -275,7 +275,7 @@ export default function Home() {
                     <Badge variant="outline" className="mb-2 bg-background/50 backdrop-blur text-primary border-primary/20">
                       Live Itinerary
                     </Badge>
-                    <CardTitle className="text-2xl flex items-center gap-2">
+                    <CardTitle className="text-lg md:text-2xl flex items-center gap-2">
                       {activeTrip.destination}
                       <span className="text-muted-foreground font-normal text-lg">
                         • {activeTrip.startDate}
@@ -363,7 +363,7 @@ export default function Home() {
         {/* Discoveries Section */}
         <div className="space-y-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold tracking-tight">Trending Destinations</h2>
+            <h2 className="text-lg md:text-2xl font-bold tracking-tight">Trending Destinations</h2>
             <Link href="/discover">
               <Button variant="ghost" className="gap-1">
                 View all <TrendingUp className="h-4 w-4" />
@@ -390,8 +390,8 @@ export default function Home() {
                   <div className="p-4">
                     <div className="flex items-start justify-between mb-2">
                       <div>
-                        <h3 className="font-semibold text-lg leading-none mb-1">{discovery.title}</h3>
-                        <p className="text-sm text-muted-foreground flex items-center gap-1">
+                        <h3 className="font-semibold text-sm md:text-lg leading-none mb-1">{discovery.title}</h3>
+                        <p className="text-xs md:text-sm text-muted-foreground flex items-center gap-1">
                           <MapPin className="h-3 w-3" /> {discovery.location}
                         </p>
                       </div>
@@ -399,7 +399,7 @@ export default function Home() {
                         {discovery.sentiment}
                       </Badge>
                     </div>
-                    <p className="text-sm text-muted-foreground line-clamp-2">
+                    <p className="text-xs md:text-sm text-muted-foreground line-clamp-2">
                       {discovery.description}
                     </p>
                   </div>

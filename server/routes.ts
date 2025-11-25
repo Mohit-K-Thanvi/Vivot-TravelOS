@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { generateTripItinerary, adaptItinerary, generatePivotProposal } from "./gemini-service";
+import { generateTripItinerary, adaptItinerary, generatePivotProposal, generateCareModePlan } from "./gemini-service";
 import {
   insertTripSchema,
   insertActivitySchema,
@@ -395,6 +395,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Pivot error:", error);
       res.status(500).json({ error: "Failed to generate pivot" });
+    }
+  });
+
+  app.post("/api/trips/:id/care-mode", async (req, res) => {
+    try {
+      const { condition, destination } = req.body;
+      if (!condition || !destination) {
+        return res.status(400).json({ error: "Condition and destination are required" });
+      }
+
+      const plan = await generateCareModePlan(condition, destination);
+      res.json(plan);
+    } catch (error) {
+      console.error("Care Mode Error:", error);
+      res.status(500).json({ error: "Failed to generate care plan" });
     }
   });
 

@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
+import { CareModeModal } from "@/components/care-mode-modal";
 import {
   Calendar,
   DollarSign,
@@ -46,11 +47,29 @@ export default function TripDetail() {
     mutationFn: async ({ activityId, completed }: { activityId: string; completed: boolean }) => {
       return await apiRequest("PATCH", `/api/activities/${activityId}`, { completed });
     },
+    onMutate: async ({ activityId, completed }) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/trips", id, "activities"] });
+      const previousActivities = queryClient.getQueryData<Activity[]>(["/api/trips", id, "activities"]);
+      queryClient.setQueryData<Activity[]>(["/api/trips", id, "activities"], (old) => {
+        if (!old) return [];
+        return old.map((a) =>
+          a.id === activityId ? { ...a, completed } : a
+        );
+      });
+      return { previousActivities };
+    },
     onSuccess: () => {
-      // Invalidate queries to refresh UI
       queryClient.invalidateQueries({ queryKey: ["/api/trips", id, "activities"] });
       queryClient.invalidateQueries({ queryKey: ["/api/trips", id, "budget"] });
       queryClient.invalidateQueries({ queryKey: ["/api/trips", id] });
+    },
+    onError: (err, newTodo, context) => {
+      queryClient.setQueryData(["/api/trips", id, "activities"], context?.previousActivities);
+      toast({
+        title: "Error",
+        description: "Failed to update activity status.",
+        variant: "destructive",
+      });
     },
   });
 
@@ -130,9 +149,12 @@ export default function TripDetail() {
                 </div>
               </div>
             </div>
-            <Badge variant="default" className="text-sm capitalize">
-              {trip.status}
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge variant="default" className="text-sm capitalize">
+                {trip.status}
+              </Badge>
+              <CareModeModal tripId={trip.id} destination={trip.destination} selectedDay={selectedDay} />
+            </div>
           </div>
           <div className="mt-4">
             <Progress value={(trip.spent / trip.budget) * 100} className="h-2" />
