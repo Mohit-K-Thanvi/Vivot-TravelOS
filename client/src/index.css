@@ -165,15 +165,6 @@
   --destructive-border: hsl(from hsl(var(--destructive)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
 }
 
-@layer base {
-  * {
-    @apply border-border;
-  }
-
-  body {
-    @apply font-sans antialiased bg-background text-foreground;
-  }
-}
 
 /**
  * Using the elevate system.
