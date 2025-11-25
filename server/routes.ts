@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { generateTripItinerary, adaptItinerary } from "./openai-service";
+import { generateTripItinerary, adaptItinerary } from "./gemini-service";
 import {
   insertTripSchema,
   insertActivitySchema,
