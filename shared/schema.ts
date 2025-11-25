@@ -34,6 +34,7 @@ export const trips = pgTable("trips", {
   spent: real("spent").default(0).notNull(),
   status: varchar("status").notNull().default("planning"), // planning, active, completed
   imageUrl: text("image_url"),
+  coordinates: jsonb("coordinates"), // { lat: number, lng: number }
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -55,6 +56,8 @@ export const activities = pgTable("activities", {
   isShadowOption: boolean("is_shadow_option").default(false).notNull(),
   parentActivityId: varchar("parent_activity_id"), // ID of the main activity this shadows
   energyLevelRequirement: varchar("energy_level_requirement").default("high"), // high, medium, low
+  coordinates: jsonb("coordinates"), // { lat: number, lng: number }
+  imageKeyword: text("image_keyword"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
