@@ -68,10 +68,10 @@ export async function generateTripItinerary(
     "response": "A warm, engaging summary of the trip you've planned.",
     "trip": {
       "destination": "City, Country",
-      "coordinates": { "lat": 0.0, "lng": 0.0 }, // Precise coordinates of the city center
+      "coordinates": { "lat": 0.0, "lng": 0.0 }, // CRITICAL: Precise coordinates of the city center. Do NOT return 0,0.
       "startDate": "YYYY-MM-DD",
       "endDate": "YYYY-MM-DD",
-      "budget": number (total estimated cost),
+      "budget": number, // Minimum realistic estimated budget in USD
       "activities": [
         {
           "day": 1,
@@ -81,7 +81,7 @@ export async function generateTripItinerary(
           "time": "HH:MM",
           "duration": "X hours",
           "location": "Specific Address or Place Name",
-          "coordinates": { "lat": 0.0, "lng": 0.0 }, // Precise coordinates of the activity
+          "coordinates": { "lat": 0.0, "lng": 0.0 }, // CRITICAL: Precise coordinates of the activity. Do NOT return 0,0.
           "imageKeyword": "Specific search term for a photo (e.g., 'Eiffel Tower sunset', 'Sushi platter')",
           "cost": number,
           "orderIndex": 0,
@@ -106,6 +106,8 @@ export async function generateTripItinerary(
   3. **Diverse Itinerary**: Mix famous landmarks with hidden gems and local food spots.
   4. **Shadow Options**: Always provide a low-energy alternative for strenuous activities.
   5. **Realism**: Include travel time and realistic durations.
+  6. **Coordinates**: You MUST provide valid latitude and longitude for the destination and EVERY activity.
+  7. **Budget**: Provide a realistic minimum budget estimate for the entire trip including accommodation, food, and activities.
   
   If the user is just chatting, respond with:
   {

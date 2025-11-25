@@ -1,6 +1,6 @@
 import { useParams, Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,20 +14,32 @@ import {
   DollarSign,
   MapPin,
   Clock,
-  Check,
-  Map,
-  List,
-  Wallet,
   ArrowLeft,
-  Plus,
+  List,
+  Map as MapIcon,
+  Wallet,
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Trip, Activity, BudgetItem } from "@shared/schema";
+import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import L from "leaflet";
+
+// Fix for Leaflet default icon
+const defaultIcon = L.icon({
+  iconUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png",
+  iconRetinaUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png",
+  shadowUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41],
+});
 
 export default function TripDetail() {
   const { id } = useParams();
   const { toast } = useToast();
   const [selectedDay, setSelectedDay] = useState(1);
+  const [activeTab, setActiveTab] = useState("itinerary");
 
   const { data: trip, isLoading: tripLoading } = useQuery<Trip>({
     queryKey: ["/api/trips", id],
@@ -92,6 +104,17 @@ export default function TripDetail() {
     return acc;
   }, {} as Record<string, number>) || {};
 
+  // Helper to get image URL
+  const getImageUrl = (activity: Activity) => {
+    if (activity.imageUrl) return activity.imageUrl;
+    if ((activity as any).imageKeyword) {
+      return `https://image.pollinations.ai/prompt/${encodeURIComponent((activity as any).imageKeyword)}?width=800&height=600&nologo=true`;
+    }
+    return null;
+  };
+
+  const tripCoordinates = (trip as any).coordinates as { lat: number; lng: number } | null;
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -116,7 +139,7 @@ export default function TripDetail() {
                 <div className="flex items-center gap-1">
                   <DollarSign className="h-4 w-4" />
                   <span>
-                    ${trip.spent.toFixed(0)} / ${trip.budget.toFixed(0)}
+                    ${trip.spent.toFixed(0)} spent / ${activities?.reduce((sum, act) => sum + act.cost, 0).toFixed(0) || 0} est. / ${trip.budget.toFixed(0)} budget
                   </span>
                 </div>
               </div>
@@ -136,14 +159,14 @@ export default function TripDetail() {
 
       {/* Main Content */}
       <div className="mx-auto max-w-7xl px-4 py-8">
-        <Tabs defaultValue="itinerary" className="w-full">
+        <Tabs defaultValue="itinerary" className="w-full" value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="mb-6">
             <TabsTrigger value="itinerary" data-testid="tab-itinerary">
               <List className="mr-2 h-4 w-4" />
               Itinerary
             </TabsTrigger>
             <TabsTrigger value="map" data-testid="tab-map">
-              <Map className="mr-2 h-4 w-4" />
+              <MapIcon className="mr-2 h-4 w-4" />
               Map View
             </TabsTrigger>
             <TabsTrigger value="budget" data-testid="tab-budget">
@@ -180,71 +203,82 @@ export default function TripDetail() {
               <div className="space-y-4">
                 {dayActivities
                   .sort((a, b) => a.orderIndex - b.orderIndex)
-                  .map((activity) => (
-                    <Card
-                      key={activity.id}
-                      className="overflow-hidden hover-elevate"
-                      data-testid={`activity-${activity.id}`}
-                    >
-                      <div className="flex flex-col md:flex-row">
-                        {(activity.imageUrl || (activity as any).imageKeyword) && (
-                          <img
-                            src={activity.imageUrl || `https://loremflickr.com/800/600/${encodeURIComponent((activity as any).imageKeyword)}`}
-                            alt={activity.title}
-                            className="h-32 w-full object-cover md:h-auto md:w-32"
-                          />
-                        )}
-                        <div className="flex-1 p-4">
-                          <div className="mb-2 flex items-start justify-between gap-4">
-                            <div className="flex items-start gap-3">
-                              <Checkbox
-                                checked={activity.completed}
-                                onCheckedChange={(checked) => {
-                                  toggleActivityMutation.mutate({
-                                    activityId: activity.id,
-                                    completed: !!checked,
-                                  });
-                                }}
-                                data-testid={`checkbox-activity-${activity.id}`}
-                              />
-                              <div>
-                                <h3 className="font-semibold">{activity.title}</h3>
-                                {activity.description && (
-                                  <p className="mt-1 text-sm text-muted-foreground">
-                                    {activity.description}
-                                  </p>
-                                )}
+                  .map((activity) => {
+                    const imgUrl = getImageUrl(activity);
+                    return (
+                      <Card
+                        key={activity.id}
+                        className="overflow-hidden hover-elevate"
+                        data-testid={`activity-${activity.id}`}
+                      >
+                        <div className="flex flex-col md:flex-row">
+                          {imgUrl && (
+                            <img
+                              src={imgUrl}
+                              alt={activity.title}
+                              className="h-48 w-full object-cover md:h-auto md:w-48"
+                              loading="lazy"
+                            />
+                          )}
+                          <div className="flex-1 p-4">
+                            <div className="mb-2 flex items-start justify-between gap-4">
+                              <div className="flex items-start gap-3">
+                                <Checkbox
+                                  checked={activity.completed}
+                                  onCheckedChange={(checked) => {
+                                    toggleActivityMutation.mutate({
+                                      activityId: activity.id,
+                                      completed: !!checked,
+                                    });
+                                  }}
+                                  data-testid={`checkbox-activity-${activity.id}`}
+                                />
+                                <div>
+                                  <h3 className="font-semibold">{activity.title}</h3>
+                                  {activity.description && (
+                                    <p className="mt-1 text-sm text-muted-foreground">
+                                      {activity.description}
+                                    </p>
+                                  )}
+                                </div>
                               </div>
+                              <Badge variant="secondary" className="capitalize">
+                                {activity.category}
+                              </Badge>
                             </div>
-                            <Badge variant="secondary" className="capitalize">
-                              {activity.category}
-                            </Badge>
-                          </div>
-                          <div className="mt-3 flex flex-wrap gap-4 text-sm text-muted-foreground">
-                            <div className="flex items-center gap-1">
-                              <Clock className="h-4 w-4" />
-                              <span>{activity.time}</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <MapPin className="h-4 w-4" />
-                              <span>{activity.location}</span>
-                            </div>
-                            {activity.cost > 0 && (
+                            <div className="mt-3 flex flex-wrap gap-4 text-sm text-muted-foreground">
                               <div className="flex items-center gap-1">
-                                <DollarSign className="h-4 w-4" />
-                                <span>${activity.cost.toFixed(0)}</span>
+                                <Clock className="h-4 w-4" />
+                                <span>{activity.time}</span>
                               </div>
-                            )}
-                            {activity.duration && (
                               <div className="flex items-center gap-1">
-                                <span>{activity.duration}</span>
+                                <MapPin className="h-4 w-4" />
+                                <a
+                                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activity.location)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="hover:underline hover:text-primary"
+                                >
+                                  {activity.location}
+                                </a>
                               </div>
-                            )}
+                              {activity.cost > 0 && (
+                                <div className="flex items-center gap-1">
+                                  <DollarSign className="h-4 w-4" />
+                                  <span>${activity.cost.toFixed(0)}</span>
+                                </div>
+                              )}
+                              {activity.duration && (
+                                <div className="flex items-center gap-1">
+                                  <span>{activity.duration}</span>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </Card>
-                  ))}
+                      </Card>
+                    );
+                  })}
               </div>
             ) : (
               <Card className="p-12 text-center">
@@ -258,23 +292,55 @@ export default function TripDetail() {
           </TabsContent>
 
           {/* Map Tab */}
-          {/* Map Tab */}
           <TabsContent value="map">
-            <Card className="h-[600px] w-full overflow-hidden p-0">
-              {(trip as any).coordinates ? (
-                <iframe
-                  width="100%"
-                  height="100%"
-                  frameBorder="0"
-                  scrolling="no"
-                  marginHeight={0}
-                  marginWidth={0}
-                  src={`https://www.openstreetmap.org/export/embed.html?bbox=${(trip as any).coordinates.lng - 0.05},${(trip as any).coordinates.lat - 0.05},${(trip as any).coordinates.lng + 0.05},${(trip as any).coordinates.lat + 0.05}&layer=mapnik&marker=${(trip as any).coordinates.lat},${(trip as any).coordinates.lng}`}
-                  className="h-full w-full"
-                ></iframe>
+            <Card className="h-[600px] w-full overflow-hidden p-0 relative z-0">
+              {tripCoordinates ? (
+                <MapContainer
+                  center={[tripCoordinates.lat, tripCoordinates.lng]}
+                  zoom={13}
+                  style={{ height: "100%", width: "100%" }}
+                >
+                  <TileLayer
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                  />
+                  <Marker position={[tripCoordinates.lat, tripCoordinates.lng]} icon={defaultIcon}>
+                    <Popup>
+                      <div className="font-bold">{trip.destination}</div>
+                      <div>Trip Base</div>
+                    </Popup>
+                  </Marker>
+                  {activities?.map((activity) => {
+                    const coords = (activity as any).coordinates as { lat: number; lng: number } | null;
+                    if (coords) {
+                      return (
+                        <Marker
+                          key={activity.id}
+                          position={[coords.lat, coords.lng]}
+                          icon={defaultIcon}
+                        >
+                          <Popup>
+                            <div className="font-bold">{activity.title}</div>
+                            <div className="text-xs">{activity.location}</div>
+                            <div className="text-xs text-muted-foreground">{activity.time}</div>
+                            <a
+                              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activity.location)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="mt-1 block text-xs text-blue-500 hover:underline"
+                            >
+                              Open in Google Maps
+                            </a>
+                          </Popup>
+                        </Marker>
+                      );
+                    }
+                    return null;
+                  })}
+                </MapContainer>
               ) : (
                 <div className="flex h-full flex-col items-center justify-center p-12 text-center">
-                  <Map className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+                  <MapIcon className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
                   <h3 className="mb-2 text-lg font-semibold">Map Unavailable</h3>
                   <p className="text-sm text-muted-foreground">
                     Coordinates for this trip are missing.

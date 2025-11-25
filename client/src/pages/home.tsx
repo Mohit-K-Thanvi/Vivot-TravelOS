@@ -141,18 +141,18 @@ export default function Home() {
           </div>
 
           {/* Planning Widget */}
-          <Card className="w-full max-w-5xl bg-white/95 backdrop-blur-md shadow-2xl border-none">
+          <Card className="w-full max-w-5xl bg-background/95 backdrop-blur-md shadow-2xl border-none">
             <CardContent className="p-6">
               <div className="grid gap-6 md:grid-cols-[1fr_1fr_1fr_1fr_auto]">
 
                 <div className="space-y-2">
-                  <Label htmlFor="origin" className="text-muted-foreground font-medium">From</Label>
+                  <Label htmlFor="origin" className="text-foreground font-medium">From</Label>
                   <div className="relative">
                     <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="origin"
                       placeholder="Current Location"
-                      className="pl-9 pr-10 border-muted bg-transparent"
+                      className="pl-9 pr-10 border-input bg-background text-foreground"
                       value={origin}
                       onChange={(e) => setOrigin(e.target.value)}
                     />
@@ -170,13 +170,13 @@ export default function Home() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="destination" className="text-muted-foreground font-medium">To</Label>
+                  <Label htmlFor="destination" className="text-foreground font-medium">To</Label>
                   <div className="relative">
                     <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="destination"
                       placeholder="e.g., Kyoto, Japan"
-                      className="pl-9 border-muted bg-transparent"
+                      className="pl-9 border-input bg-background text-foreground"
                       value={destination}
                       onChange={(e) => setDestination(e.target.value)}
                     />
@@ -184,13 +184,13 @@ export default function Home() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-muted-foreground font-medium">Dates</Label>
+                  <Label className="text-foreground font-medium">Dates</Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
                         variant={"outline"}
                         className={cn(
-                          "w-full justify-start text-left font-normal border-muted bg-transparent",
+                          "w-full justify-start text-left font-normal border-input bg-background text-foreground",
                           !date && "text-muted-foreground"
                         )}
                       >
@@ -211,7 +211,7 @@ export default function Home() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-muted-foreground font-medium">Budget: ${budget[0]}</Label>
+                  <Label className="text-foreground font-medium">Budget: ${budget[0]}</Label>
                   <div className="pt-2 px-1">
                     <Slider
                       defaultValue={[2000]}

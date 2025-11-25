@@ -12,6 +12,21 @@ import {
   insertPivotLogSchema,
 } from "@shared/schema";
 
+async function getCoordinates(location: string): Promise<{ lat: number; lng: number } | null> {
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(location)}&limit=1`, {
+      headers: { 'User-Agent': 'VivotTravelOS/1.0' }
+    });
+    const data = await res.json();
+    if (data && data.length > 0) {
+      return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+    }
+  } catch (e) {
+    console.error("Geocoding error:", e);
+  }
+  return null;
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   const DEFAULT_USER_ID = "default-user";
 
@@ -72,6 +87,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!trip) {
         return res.status(404).json({ error: "Trip not found" });
       }
+
+      // Self-healing: Fix missing coordinates
+      const tripCoords = trip.coordinates as any;
+      if (!tripCoords || (tripCoords.lat === 0 && tripCoords.lng === 0)) {
+        const coords = await getCoordinates(trip.destination);
+        if (coords) {
+          const updated = await storage.updateTrip(trip.id, { coordinates: coords });
+          return res.json(updated);
+        }
+      }
+
       res.json(trip);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch trip" });
@@ -104,6 +130,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/trips/:id/activities", async (req, res) => {
     try {
       const activities = await storage.getActivitiesByTrip(req.params.id);
+
+      // Self-healing: Fix missing coordinates
+      const trip = await storage.getTrip(req.params.id);
+      if (trip) {
+        for (const activity of activities) {
+          const actCoords = activity.coordinates as any;
+          if (!actCoords || (actCoords.lat === 0 && actCoords.lng === 0)) {
+            const query = `${activity.location}, ${trip.destination}`;
+            const coords = await getCoordinates(query);
+            if (coords) {
+              await storage.updateActivity(activity.id, { coordinates: coords });
+              activity.coordinates = coords; // Update in memory for response
+            }
+          }
+        }
+      }
+
       res.json(activities);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch activities" });
@@ -122,8 +165,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/activities/:id", async (req, res) => {
     try {
-      const activity = await storage.updateActivity(req.params.id, req.body);
-      res.json(activity);
+      const activity = await storage.getActivity(req.params.id);
+      if (!activity) {
+        return res.status(404).json({ error: "Activity not found" });
+      }
+
+      const updated = await storage.updateActivity(req.params.id, req.body);
+
+      // If 'completed' status changed, update trip budget
+      if (req.body.completed !== undefined && req.body.completed !== activity.completed) {
+        const trip = await storage.getTrip(activity.tripId);
+        if (trip) {
+          let newSpent = trip.spent;
+          if (req.body.completed) {
+            newSpent += activity.cost;
+          } else {
+            newSpent -= activity.cost;
+          }
+          // Ensure spent doesn't go below 0
+          newSpent = Math.max(0, newSpent);
+          await storage.updateTripSpent(trip.id, newSpent);
+        }
+      }
+
+      res.json(updated);
     } catch (error) {
       res.status(500).json({ error: "Failed to update activity" });
     }
@@ -202,10 +267,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create trip if AI generated one
       let createdTrip;
       if (aiResponse.trip) {
+        // Geocoding fallback for destination
+        let destCoords = aiResponse.trip.coordinates;
+        if (!destCoords || (destCoords.lat === 0 && destCoords.lng === 0)) {
+          const fetched = await getCoordinates(aiResponse.trip.destination);
+          if (fetched) destCoords = fetched;
+        }
+
         createdTrip = await storage.createTrip({
           userId: DEFAULT_USER_ID,
           destination: aiResponse.trip.destination,
-          coordinates: aiResponse.trip.coordinates,
+          coordinates: destCoords,
           startDate: aiResponse.trip.startDate,
           endDate: aiResponse.trip.endDate,
           budget: aiResponse.trip.budget,
@@ -213,6 +285,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Create all activities for the trip
         for (const activity of aiResponse.trip.activities) {
+          // Geocoding fallback for activity
+          let actCoords = activity.coordinates;
+          if (!actCoords || (actCoords.lat === 0 && actCoords.lng === 0)) {
+            const query = `${activity.location}, ${aiResponse.trip.destination}`;
+            const fetched = await getCoordinates(query);
+            if (fetched) actCoords = fetched;
+          }
+
           const mainActivity = await storage.createActivity({
             tripId: createdTrip.id,
             day: activity.day,
@@ -222,7 +302,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             time: activity.time,
             duration: activity.duration || "",
             location: activity.location,
-            coordinates: activity.coordinates,
+            coordinates: actCoords,
             imageKeyword: activity.imageKeyword,
             cost: activity.cost,
             orderIndex: activity.orderIndex,
