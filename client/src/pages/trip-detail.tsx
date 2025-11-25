@@ -60,7 +60,10 @@ export default function TripDetail() {
       return await apiRequest("PATCH", `/api/activities/${activityId}`, { completed });
     },
     onSuccess: () => {
+      // Invalidate queries to refresh UI
       queryClient.invalidateQueries({ queryKey: ["/api/trips", id, "activities"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/trips", id, "budget"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/trips", id] });
     },
   });
 
@@ -96,7 +99,7 @@ export default function TripDetail() {
   const dayActivities = activities?.filter((a) => a.day === selectedDay) || [];
   const totalDays = Math.ceil(
     (new Date(trip.endDate).getTime() - new Date(trip.startDate).getTime()) /
-    (1000 * 60 * 60 * 24)
+    (1000 * 60 * 60 * 24),
   ) + 1;
 
   const categoryTotals = budgetItems?.reduce((acc, item) => {
@@ -132,14 +135,12 @@ export default function TripDetail() {
               <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                 <div className="flex items-center gap-1">
                   <Calendar className="h-4 w-4" />
-                  <span>
-                    {trip.startDate} - {trip.endDate}
-                  </span>
+                  <span>{trip.startDate} - {trip.endDate}</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <DollarSign className="h-4 w-4" />
                   <span>
-                    ${trip.spent.toFixed(0)} spent / ${activities?.reduce((sum, act) => sum + act.cost, 0).toFixed(0) || 0} est. / ${trip.budget.toFixed(0)} budget
+                    ${trip.spent.toFixed(0)} spent / {activities?.reduce((sum, act) => sum + act.cost, 0).toFixed(0) || 0} est. / ${trip.budget.toFixed(0)} budget
                   </span>
                 </div>
               </div>
@@ -159,7 +160,7 @@ export default function TripDetail() {
 
       {/* Main Content */}
       <div className="mx-auto max-w-7xl px-4 py-8">
-        <Tabs defaultValue="itinerary" className="w-full" value={activeTab} onValueChange={setActiveTab}>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="mb-6">
             <TabsTrigger value="itinerary" data-testid="tab-itinerary">
               <List className="mr-2 h-4 w-4" />
@@ -241,38 +242,38 @@ export default function TripDetail() {
                                     </p>
                                   )}
                                 </div>
+                                <Badge variant="secondary" className="capitalize">
+                                  {activity.category}
+                                </Badge>
                               </div>
-                              <Badge variant="secondary" className="capitalize">
-                                {activity.category}
-                              </Badge>
-                            </div>
-                            <div className="mt-3 flex flex-wrap gap-4 text-sm text-muted-foreground">
-                              <div className="flex items-center gap-1">
-                                <Clock className="h-4 w-4" />
-                                <span>{activity.time}</span>
-                              </div>
-                              <div className="flex items-center gap-1">
-                                <MapPin className="h-4 w-4" />
-                                <a
-                                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activity.location)}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="hover:underline hover:text-primary"
-                                >
-                                  {activity.location}
-                                </a>
-                              </div>
-                              {activity.cost > 0 && (
+                              <div className="mt-3 flex flex-wrap gap-4 text-sm text-muted-foreground">
                                 <div className="flex items-center gap-1">
-                                  <DollarSign className="h-4 w-4" />
-                                  <span>${activity.cost.toFixed(0)}</span>
+                                  <Clock className="h-4 w-4" />
+                                  <span>{activity.time}</span>
                                 </div>
-                              )}
-                              {activity.duration && (
                                 <div className="flex items-center gap-1">
-                                  <span>{activity.duration}</span>
+                                  <MapPin className="h-4 w-4" />
+                                  <a
+                                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activity.location)}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="hover:underline hover:text-primary"
+                                  >
+                                    {activity.location}
+                                  </a>
                                 </div>
-                              )}
+                                {activity.cost > 0 && (
+                                  <div className="flex items-center gap-1">
+                                    <DollarSign className="h-4 w-4" />
+                                    <span>{activity.cost.toFixed(0)}</span>
+                                  </div>
+                                )}
+                                {activity.duration && (
+                                  <div className="flex items-center gap-1">
+                                    <span>{activity.duration}</span>
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -283,7 +284,9 @@ export default function TripDetail() {
             ) : (
               <Card className="p-12 text-center">
                 <Calendar className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
-                <h3 className="mb-2 text-lg font-semibold">No activities for Day {selectedDay}</h3>
+                <h3 className="mb-2 text-lg font-semibold">
+                  No activities for Day {selectedDay}
+                </h3>
                 <p className="text-sm text-muted-foreground">
                   Activities for this day haven't been planned yet
                 </p>
@@ -312,30 +315,24 @@ export default function TripDetail() {
                   </Marker>
                   {activities?.map((activity) => {
                     const coords = (activity as any).coordinates as { lat: number; lng: number } | null;
-                    if (coords) {
-                      return (
-                        <Marker
-                          key={activity.id}
-                          position={[coords.lat, coords.lng]}
-                          icon={defaultIcon}
-                        >
-                          <Popup>
-                            <div className="font-bold">{activity.title}</div>
-                            <div className="text-xs">{activity.location}</div>
-                            <div className="text-xs text-muted-foreground">{activity.time}</div>
-                            <a
-                              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activity.location)}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="mt-1 block text-xs text-blue-500 hover:underline"
-                            >
-                              Open in Google Maps
-                            </a>
-                          </Popup>
-                        </Marker>
-                      );
-                    }
-                    return null;
+                    if (!coords) return null;
+                    return (
+                      <Marker key={activity.id} position={[coords.lat, coords.lng]} icon={defaultIcon}>
+                        <Popup>
+                          <div className="font-bold">{activity.title}</div>
+                          <div className="text-xs">{activity.location}</div>
+                          <div className="text-xs text-muted-foreground">{activity.time}</div>
+                          <a
+                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activity.location)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="mt-1 block text-xs text-blue-500 hover:underline"
+                          >
+                            Open in Google Maps
+                          </a>
+                        </Popup>
+                      </Marker>
+                    );
                   })}
                 </MapContainer>
               ) : (
@@ -361,27 +358,19 @@ export default function TripDetail() {
                   <div className="space-y-4">
                     <div>
                       <div className="mb-2 flex items-baseline gap-2">
-                        <span className="text-3xl font-bold">
-                          ${trip.spent.toFixed(0)}
-                        </span>
-                        <span className="text-sm text-muted-foreground">
-                          of ${trip.budget.toFixed(0)}
-                        </span>
+                        <span className="text-3xl font-bold">${trip.spent.toFixed(0)}</span>
+                        <span className="text-sm text-muted-foreground">of {trip.budget.toFixed(0)}</span>
                       </div>
                       <Progress value={(trip.spent / trip.budget) * 100} className="h-3" />
                     </div>
                     <div className="space-y-2 border-t border-border pt-4">
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Remaining</span>
-                        <span className="font-medium">
-                          ${(trip.budget - trip.spent).toFixed(0)}
-                        </span>
+                        <span className="font-medium">${(trip.budget - trip.spent).toFixed(0)}</span>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">% Used</span>
-                        <span className="font-medium">
-                          {((trip.spent / trip.budget) * 100).toFixed(1)}%
-                        </span>
+                        <span className="font-medium">{((trip.spent / trip.budget) * 100).toFixed(1)}%</span>
                       </div>
                     </div>
                   </div>

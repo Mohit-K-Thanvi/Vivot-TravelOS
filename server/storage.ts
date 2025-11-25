@@ -58,6 +58,7 @@ export interface IStorage {
   getBudgetItem(id: string): Promise<BudgetItem | undefined>;
   getBudgetItemsByTrip(tripId: string): Promise<BudgetItem[]>;
   createBudgetItem(item: InsertBudgetItem): Promise<BudgetItem>;
+  deleteBudgetItem(id: string): Promise<void>;
 
   // Chat Messages
   getChatMessages(): Promise<ChatMessage[]>;
@@ -239,10 +240,40 @@ export class MemStorage implements IStorage {
     const existing = this.activities.get(id);
     if (!existing) throw new Error("Activity not found");
 
-    const updated: Activity = { ...existing, ...updates };
+    // Only allow SAFE fields to be updated
+    const allowedFields: (keyof Activity)[] = [
+      "title",
+      "description",
+      "category",
+      "time",
+      "duration",
+      "location",
+      "cost",
+      "completed",
+      "energyLevelRequirement",
+      "isShadowOption",
+      "imageUrl",
+    ];
+
+    const sanitizedUpdates: Partial<Activity> = {};
+
+    for (const key of Object.keys(updates)) {
+      if (allowedFields.includes(key as keyof Activity)) {
+        (sanitizedUpdates as any)[key] = (updates as any)[key];
+      } else {
+        console.warn(`Blocked update to field: ${key}`);
+      }
+    }
+
+    const updated: Activity = {
+      ...existing,
+      ...sanitizedUpdates,
+    };
+
     this.activities.set(id, updated);
     return updated;
   }
+
 
   async deleteActivity(id: string): Promise<void> {
     this.activities.delete(id);
@@ -297,6 +328,10 @@ export class MemStorage implements IStorage {
     };
     this.budgetItems.set(id, item);
     return item;
+  }
+
+  async deleteBudgetItem(id: string): Promise<void> {
+    this.budgetItems.delete(id);
   }
 
   // Chat Messages
