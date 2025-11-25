@@ -15,6 +15,10 @@ import {
   type InsertChatMessage,
   type JourneyOption,
   type InsertJourneyOption,
+  type MoodReading,
+  type InsertMoodReading,
+  type PivotLog,
+  type InsertPivotLog,
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 
@@ -39,6 +43,7 @@ export interface IStorage {
   // Activities
   getActivity(id: string): Promise<Activity | undefined>;
   getActivitiesByTrip(tripId: string): Promise<Activity[]>;
+  getShadowActivities(tripId: string): Promise<Activity[]>;
   createActivity(activity: InsertActivity): Promise<Activity>;
   updateActivity(id: string, activity: Partial<Activity>): Promise<Activity>;
   deleteActivity(id: string): Promise<void>;
@@ -61,6 +66,14 @@ export interface IStorage {
   // Journey Options
   getJourneyOptions(from: string, to: string): Promise<JourneyOption[]>;
   createJourneyOption(option: InsertJourneyOption): Promise<JourneyOption>;
+
+  // Mood Readings
+  createMoodReading(reading: InsertMoodReading): Promise<MoodReading>;
+  getMoodReadings(tripId: string): Promise<MoodReading[]>;
+
+  // Pivot Logs
+  createPivotLog(log: InsertPivotLog): Promise<PivotLog>;
+  getPivotLogs(tripId: string): Promise<PivotLog[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -72,6 +85,8 @@ export class MemStorage implements IStorage {
   private budgetItems: Map<string, BudgetItem>;
   private chatMessages: Map<string, ChatMessage>;
   private journeyOptions: Map<string, JourneyOption>;
+  private moodReadings: Map<string, MoodReading>;
+  private pivotLogs: Map<string, PivotLog>;
 
   constructor() {
     this.users = new Map();
@@ -82,6 +97,8 @@ export class MemStorage implements IStorage {
     this.budgetItems = new Map();
     this.chatMessages = new Map();
     this.journeyOptions = new Map();
+    this.moodReadings = new Map();
+    this.pivotLogs = new Map();
 
     this.seedDiscoveries();
   }
@@ -97,7 +114,11 @@ export class MemStorage implements IStorage {
 
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = randomUUID();
-    const user: User = { ...insertUser, id };
+    const user: User = {
+      ...insertUser,
+      id,
+      createdAt: new Date()
+    };
     this.users.set(id, user);
     return user;
   }
@@ -112,6 +133,7 @@ export class MemStorage implements IStorage {
     const prefs: UserPreferences = {
       ...insertPrefs,
       id,
+      userId: insertPrefs.userId || "default-user",
       updatedAt: new Date(),
     };
     this.preferences.set(id, prefs);
@@ -147,6 +169,8 @@ export class MemStorage implements IStorage {
     const trip: Trip = {
       ...insertTrip,
       id,
+      userId: insertTrip.userId || "default-user",
+      imageUrl: insertTrip.imageUrl || null,
       spent: 0,
       status: "planning",
       createdAt: new Date(),
@@ -180,8 +204,13 @@ export class MemStorage implements IStorage {
 
   async getActivitiesByTrip(tripId: string): Promise<Activity[]> {
     return Array.from(this.activities.values())
-      .filter((a) => a.tripId === tripId)
+      .filter((a) => a.tripId === tripId && !a.isShadowOption)
       .sort((a, b) => a.day - b.day || a.orderIndex - b.orderIndex);
+  }
+
+  async getShadowActivities(tripId: string): Promise<Activity[]> {
+    return Array.from(this.activities.values())
+      .filter((a) => a.tripId === tripId && a.isShadowOption);
   }
 
   async createActivity(insertActivity: InsertActivity): Promise<Activity> {
@@ -189,7 +218,14 @@ export class MemStorage implements IStorage {
     const activity: Activity = {
       ...insertActivity,
       id,
+      description: insertActivity.description || null,
+      duration: insertActivity.duration || null,
+      imageUrl: insertActivity.imageUrl || null,
+      cost: insertActivity.cost || 0,
       completed: false,
+      isShadowOption: insertActivity.isShadowOption ?? false,
+      parentActivityId: insertActivity.parentActivityId ?? null,
+      energyLevelRequirement: insertActivity.energyLevelRequirement ?? "high",
       createdAt: new Date(),
     };
     this.activities.set(id, activity);
@@ -231,6 +267,7 @@ export class MemStorage implements IStorage {
     const discovery: Discovery = {
       ...insertDiscovery,
       id,
+      rating: insertDiscovery.rating || 4.5,
       createdAt: new Date(),
     };
     this.discoveries.set(id, discovery);
@@ -271,6 +308,7 @@ export class MemStorage implements IStorage {
     const message: ChatMessage = {
       ...insertMessage,
       id,
+      tripId: insertMessage.tripId || null,
       createdAt: new Date(),
     };
     this.chatMessages.set(id, message);
@@ -298,10 +336,52 @@ export class MemStorage implements IStorage {
     const option: JourneyOption = {
       ...insertOption,
       id,
+      distance: insertOption.distance || null,
+      details: insertOption.details || null,
       createdAt: new Date(),
     };
     this.journeyOptions.set(id, option);
     return option;
+  }
+
+  // Mood Readings
+  async createMoodReading(insertReading: InsertMoodReading): Promise<MoodReading> {
+    const id = randomUUID();
+    const reading: MoodReading = {
+      ...insertReading,
+      id,
+      userId: insertReading.userId || "default-user",
+      timestamp: new Date(),
+    };
+    this.moodReadings.set(id, reading);
+    return reading;
+  }
+
+  async getMoodReadings(tripId: string): Promise<MoodReading[]> {
+    return Array.from(this.moodReadings.values())
+      .filter((r) => r.tripId === tripId)
+      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+  }
+
+  // Pivot Logs
+  async createPivotLog(insertLog: InsertPivotLog): Promise<PivotLog> {
+    const id = randomUUID();
+    const log: PivotLog = {
+      ...insertLog,
+      id,
+      previousActivityId: insertLog.previousActivityId || null,
+      newActivityId: insertLog.newActivityId || null,
+      reason: insertLog.reason || null,
+      createdAt: new Date(),
+    };
+    this.pivotLogs.set(id, log);
+    return log;
+  }
+
+  async getPivotLogs(tripId: string): Promise<PivotLog[]> {
+    return Array.from(this.pivotLogs.values())
+      .filter((l) => l.tripId === tripId)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   }
 
   // Seed data
@@ -312,7 +392,7 @@ export class MemStorage implements IStorage {
         description: "A secret temple nestled in the rice terraces, known only to locals",
         category: "hidden-gem" as const,
         location: "Ubud, Bali",
-        imageUrl: "/api/placeholder/400/300",
+        imageUrl: "https://images.unsplash.com/photo-1537996194471-e657df975ab4",
         rating: 4.8,
         sentiment: "hidden-gem" as const,
         cost: "low" as const,
@@ -323,7 +403,7 @@ export class MemStorage implements IStorage {
         description: "Authentic local cuisine experience with over 50 vendors",
         category: "local-experience" as const,
         location: "Bangkok, Thailand",
-        imageUrl: "/api/placeholder/400/300",
+        imageUrl: "https://images.unsplash.com/photo-1555529733-0e670560f7e1",
         rating: 4.6,
         sentiment: "local-favorite" as const,
         cost: "low" as const,
@@ -334,7 +414,7 @@ export class MemStorage implements IStorage {
         description: "Trek across stunning blue ice formations with expert guides",
         category: "adventure" as const,
         location: "Patagonia, Argentina",
-        imageUrl: "/api/placeholder/400/300",
+        imageUrl: "https://images.unsplash.com/photo-1518182170546-07661fd94144",
         rating: 4.9,
         sentiment: "highly-rated" as const,
         cost: "high" as const,
@@ -345,7 +425,7 @@ export class MemStorage implements IStorage {
         description: "Explore centuries-old architecture and vibrant souks",
         category: "popular" as const,
         location: "Marrakech, Morocco",
-        imageUrl: "/api/placeholder/400/300",
+        imageUrl: "https://images.unsplash.com/photo-1539020140153-e479b8c22e70",
         rating: 4.5,
         sentiment: "trending" as const,
         cost: "medium" as const,
@@ -356,7 +436,7 @@ export class MemStorage implements IStorage {
         description: "Float above ancient temples at dawn for breathtaking views",
         category: "popular" as const,
         location: "Bagan, Myanmar",
-        imageUrl: "/api/placeholder/400/300",
+        imageUrl: "https://images.unsplash.com/photo-1507608869274-d3177c8bb4c7",
         rating: 4.9,
         sentiment: "highly-rated" as const,
         cost: "high" as const,
@@ -367,7 +447,7 @@ export class MemStorage implements IStorage {
         description: "Learn ancient ceramic techniques from master artisans",
         category: "local-experience" as const,
         location: "Kyoto, Japan",
-        imageUrl: "/api/placeholder/400/300",
+        imageUrl: "https://images.unsplash.com/photo-1493106641515-6b5631de4bb9",
         rating: 4.7,
         sentiment: "local-favorite" as const,
         cost: "medium" as const,
