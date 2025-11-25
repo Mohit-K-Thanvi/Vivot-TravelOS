@@ -48,7 +48,12 @@ export default function TripDetail() {
       return await apiRequest("PATCH", `/api/activities/${activityId}`, { completed });
     },
     onSuccess: () => {
+      // Invalidate activities to update checkboxes
       queryClient.invalidateQueries({ queryKey: ["/api/trips", id, "activities"] });
+      // Invalidate budget to update budget tab and totals
+      queryClient.invalidateQueries({ queryKey: ["/api/trips", id, "budget"] });
+      // Invalidate trip to update spent amount in header
+      queryClient.invalidateQueries({ queryKey: ["/api/trips", id] });
     },
   });
 
@@ -189,9 +194,12 @@ export default function TripDetail() {
                       <div className="flex flex-col md:flex-row">
                         {(activity.imageUrl || (activity as any).imageKeyword) && (
                           <img
-                            src={activity.imageUrl || `https://loremflickr.com/800/600/${encodeURIComponent((activity as any).imageKeyword)}`}
+                            src={activity.imageUrl || `https://image.pollinations.ai/prompt/${encodeURIComponent((activity as any).imageKeyword)}`}
                             alt={activity.title}
                             className="h-32 w-full object-cover md:h-auto md:w-32"
+                            onError={(e) => {
+                              e.currentTarget.src = "https://placehold.co/600x400?text=No+Image";
+                            }}
                           />
                         )}
                         <div className="flex-1 p-4">
@@ -200,6 +208,7 @@ export default function TripDetail() {
                               <Checkbox
                                 checked={activity.completed}
                                 onCheckedChange={(checked) => {
+                                  console.log(`[TripDetail] Toggling activity ${activity.id} (Day ${activity.day}) to ${checked}`);
                                   toggleActivityMutation.mutate({
                                     activityId: activity.id,
                                     completed: !!checked,

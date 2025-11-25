@@ -122,9 +122,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/activities/:id", async (req, res) => {
     try {
+      console.log(`[Activity PATCH] ID: ${req.params.id}, Body:`, req.body);
+
+      // Get the activity before updating
+      const oldActivity = await storage.getActivity(req.params.id);
+      if (!oldActivity) {
+        return res.status(404).json({ error: "Activity not found" });
+      }
+      console.log(`[Activity PATCH] Old completed: ${oldActivity.completed}`);
+
+      // Update the activity
       const activity = await storage.updateActivity(req.params.id, req.body);
+      // Handle budget tracking when completion status changes
+      if (req.body.completed !== undefined && req.body.completed !== oldActivity.completed) {
+        console.log(`[Budget Tracking] Status changed!`);
+        const tripId = oldActivity.tripId;
+
+        if (req.body.completed && !oldActivity.completed && activity.cost > 0) {
+          // Activity checked - create budget item
+          console.log(`[Budget Tracking] Creating budget item for $${activity.cost}`);
+          await storage.createBudgetItem({
+            tripId,
+            category: activity.category,
+            description: activity.title,
+            amount: activity.cost,
+            date: new Date().toISOString().split('T')[0],
+          });
+        } else if (!req.body.completed && oldActivity.completed && activity.cost > 0) {
+          // Activity unchecked - find and remove the corresponding budget item
+          console.log(`[Budget Tracking] Activity unchecked, removing budget item for $${activity.cost}`);
+          const budgetItems = await storage.getBudgetItemsByTrip(tripId);
+
+          // Find the most recent budget item that matches this activity
+          const itemToRemove = budgetItems.find(
+            (item) => item.description === activity.title && item.amount === activity.cost
+          );
+
+          if (itemToRemove) {
+            console.log(`[Budget Tracking] Removing budget item ID: ${itemToRemove.id}`);
+            await storage.deleteBudgetItem(itemToRemove.id);
+          } else {
+            console.log(`[Budget Tracking] Could not find budget item to remove`);
+          }
+        }
+
+        // Recalculate total spent
+        const budgetItems = await storage.getBudgetItemsByTrip(tripId);
+        const totalSpent = budgetItems.reduce((sum, item) => sum + item.amount, 0);
+        console.log(`[Budget Tracking] Total spent: $${totalSpent} from ${budgetItems.length} items`);
+        await storage.updateTripSpent(tripId, totalSpent);
+      }
+
       res.json(activity);
     } catch (error) {
+      console.error("Activity update error:", error);
       res.status(500).json({ error: "Failed to update activity" });
     }
   });
@@ -213,6 +264,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Create all activities for the trip
         for (const activity of aiResponse.trip.activities) {
+          const imageUrl = activity.imageKeyword
+            ? `https://source.unsplash.com/featured/?${encodeURIComponent(activity.imageKeyword)}`
+            : null;
+
           const mainActivity = await storage.createActivity({
             tripId: createdTrip.id,
             day: activity.day,
@@ -224,11 +279,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             location: activity.location,
             coordinates: activity.coordinates,
             imageKeyword: activity.imageKeyword,
+            imageUrl, // FIXED
             cost: activity.cost,
             orderIndex: activity.orderIndex,
             isShadowOption: false,
-            energyLevelRequirement: "high", // Default to high for main activities
+            energyLevelRequirement: "high",
           });
+
 
           // If shadow option exists, save it
           if (activity.shadowOption) {
