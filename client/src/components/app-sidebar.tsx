@@ -90,7 +90,7 @@ export function AppSidebar() {
       </SidebarContent>
       <SidebarFooter className="p-4">
         <p className="text-xs text-muted-foreground">
-          © 2024 VIVOT. AI-powered travel planning.
+          © 2025 VIVOT. AI-powered travel planning.
         </p>
       </SidebarFooter>
     </Sidebar>
