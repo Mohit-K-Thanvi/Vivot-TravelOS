@@ -54,7 +54,17 @@ export async function generateTripItinerary(
   userMessage: string,
   preferences?: TravelPreferences
 ): Promise<{ response: string; trip?: GeneratedTrip }> {
+  // Get current date for context
+  const currentDate = new Date();
+  const currentDateStr = currentDate.toISOString().split("T")[0];
+  const currentYear = currentDate.getFullYear();
+
   const systemPrompt = `You are VIVOT, an expert AI travel assistant that creates personalized, adaptive, and wellness-aware itineraries inspired by Mindtrip.ai.
+
+IMPORTANT CONTEXT:
+- Today's date is: ${currentDateStr}
+- Current year: ${currentYear}
+- All trip dates MUST be in ${currentYear} or later, never in past years
 
 You support:
 - Standard trip generation
@@ -111,7 +121,8 @@ Rules:
 1. Every activity MUST have realistic coordinates.
 2. Every activity MUST include imageKeyword.
 3. Shadow options MUST exist for strenuous activities.
-4. JSON ONLY. Never return prose unless "chatting".`;
+4. JSON ONLY. Never return prose unless "chatting".
+5. CRITICAL: startDate and endDate MUST be ${currentDateStr} or later. NEVER use dates from ${currentYear - 1} or earlier.`;
 
   try {
     const response = await ai.models.generateContent({
