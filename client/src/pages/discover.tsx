@@ -39,10 +39,10 @@ export default function Discover() {
       {/* Hero Search Section */}
       <div className="border-b border-border bg-card px-4 py-12">
         <div className="mx-auto max-w-4xl text-center">
-          <h1 className="mb-4 text-4xl font-bold tracking-tight">
+          <h1 className="mb-4 text-xl md:text-4xl font-bold tracking-tight">
             Discover Your Next Adventure
           </h1>
-          <p className="mb-8 text-lg text-muted-foreground">
+          <p className="mb-8 text-sm md:text-lg text-muted-foreground">
             Explore hidden gems, local experiences, and trending destinations
           </p>
           <div className="relative mx-auto max-w-2xl">
@@ -50,7 +50,7 @@ export default function Discover() {
             <Input
               type="search"
               placeholder="Search destinations, activities, or locations..."
-              className="h-12 pl-10 pr-4"
+              className="h-12 pl-10 pr-4 text-sm md:text-base"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               data-testid="input-search-discoveries"
@@ -103,7 +103,7 @@ export default function Discover() {
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
                   <div className="absolute bottom-3 left-3 right-3">
-                    <h3 className="mb-1 text-lg font-semibold text-white">
+                    <h3 className="mb-1 text-sm md:text-lg font-semibold text-white">
                       {discovery.title}
                     </h3>
                     <div className="flex items-center gap-1 text-sm text-white/90">

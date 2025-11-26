@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
+import { CareModeModal } from "@/components/care-mode-modal";
 import {
   Calendar,
   DollarSign,
@@ -21,19 +22,6 @@ import {
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Trip, Activity, BudgetItem } from "@shared/schema";
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
-import L from "leaflet";
-
-// Fix for Leaflet default icon
-const defaultIcon = L.icon({
-  iconUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png",
-  iconRetinaUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png",
-  shadowUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
-});
 
 export default function TripDetail() {
   const { id } = useParams();
@@ -59,11 +47,29 @@ export default function TripDetail() {
     mutationFn: async ({ activityId, completed }: { activityId: string; completed: boolean }) => {
       return await apiRequest("PATCH", `/api/activities/${activityId}`, { completed });
     },
+    onMutate: async ({ activityId, completed }) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/trips", id, "activities"] });
+      const previousActivities = queryClient.getQueryData<Activity[]>(["/api/trips", id, "activities"]);
+      queryClient.setQueryData<Activity[]>(["/api/trips", id, "activities"], (old) => {
+        if (!old) return [];
+        return old.map((a) =>
+          a.id === activityId ? { ...a, completed } : a
+        );
+      });
+      return { previousActivities };
+    },
     onSuccess: () => {
-      // Invalidate queries to refresh UI
       queryClient.invalidateQueries({ queryKey: ["/api/trips", id, "activities"] });
       queryClient.invalidateQueries({ queryKey: ["/api/trips", id, "budget"] });
       queryClient.invalidateQueries({ queryKey: ["/api/trips", id] });
+    },
+    onError: (err, newTodo, context) => {
+      queryClient.setQueryData(["/api/trips", id, "activities"], context?.previousActivities);
+      toast({
+        title: "Error",
+        description: "Failed to update activity status.",
+        variant: "destructive",
+      });
     },
   });
 
@@ -116,8 +122,6 @@ export default function TripDetail() {
     return null;
   };
 
-  const tripCoordinates = (trip as any).coordinates as { lat: number; lng: number } | null;
-
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -145,9 +149,12 @@ export default function TripDetail() {
                 </div>
               </div>
             </div>
-            <Badge variant="default" className="text-sm capitalize">
-              {trip.status}
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge variant="default" className="text-sm capitalize">
+                {trip.status}
+              </Badge>
+              <CareModeModal tripId={trip.id} destination={trip.destination} selectedDay={selectedDay} />
+            </div>
           </div>
           <div className="mt-4">
             <Progress value={(trip.spent / trip.budget) * 100} className="h-2" />
@@ -242,38 +249,38 @@ export default function TripDetail() {
                                     </p>
                                   )}
                                 </div>
-                                <Badge variant="secondary" className="capitalize">
-                                  {activity.category}
-                                </Badge>
                               </div>
-                              <div className="mt-3 flex flex-wrap gap-4 text-sm text-muted-foreground">
-                                <div className="flex items-center gap-1">
-                                  <Clock className="h-4 w-4" />
-                                  <span>{activity.time}</span>
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  <MapPin className="h-4 w-4" />
-                                  <a
-                                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activity.location)}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="hover:underline hover:text-primary"
-                                  >
-                                    {activity.location}
-                                  </a>
-                                </div>
-                                {activity.cost > 0 && (
-                                  <div className="flex items-center gap-1">
-                                    <DollarSign className="h-4 w-4" />
-                                    <span>{activity.cost.toFixed(0)}</span>
-                                  </div>
-                                )}
-                                {activity.duration && (
-                                  <div className="flex items-center gap-1">
-                                    <span>{activity.duration}</span>
-                                  </div>
-                                )}
+                              <Badge variant="secondary" className="capitalize">
+                                {activity.category}
+                              </Badge>
+                            </div>
+                            <div className="mt-3 flex flex-wrap gap-4 text-sm text-muted-foreground">
+                              <div className="flex items-center gap-1">
+                                <Clock className="h-4 w-4" />
+                                <span>{activity.time}</span>
                               </div>
+                              <div className="flex items-center gap-1">
+                                <MapPin className="h-4 w-4" />
+                                <a
+                                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activity.location)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="hover:underline hover:text-primary"
+                                >
+                                  {activity.location}
+                                </a>
+                              </div>
+                              {activity.cost > 0 && (
+                                <div className="flex items-center gap-1">
+                                  <DollarSign className="h-4 w-4" />
+                                  <span>{activity.cost.toFixed(0)}</span>
+                                </div>
+                              )}
+                              {activity.duration && (
+                                <div className="flex items-center gap-1">
+                                  <span>{activity.duration}</span>
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -297,53 +304,32 @@ export default function TripDetail() {
           {/* Map Tab */}
           <TabsContent value="map">
             <Card className="h-[600px] w-full overflow-hidden p-0 relative z-0">
-              {tripCoordinates ? (
-                <MapContainer
-                  center={[tripCoordinates.lat, tripCoordinates.lng]}
-                  zoom={13}
-                  style={{ height: "100%", width: "100%" }}
-                >
-                  <TileLayer
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                  />
-                  <Marker position={[tripCoordinates.lat, tripCoordinates.lng]} icon={defaultIcon}>
-                    <Popup>
-                      <div className="font-bold">{trip.destination}</div>
-                      <div>Trip Base</div>
-                    </Popup>
-                  </Marker>
-                  {activities?.map((activity) => {
-                    const coords = (activity as any).coordinates as { lat: number; lng: number } | null;
-                    if (!coords) return null;
-                    return (
-                      <Marker key={activity.id} position={[coords.lat, coords.lng]} icon={defaultIcon}>
-                        <Popup>
-                          <div className="font-bold">{activity.title}</div>
-                          <div className="text-xs">{activity.location}</div>
-                          <div className="text-xs text-muted-foreground">{activity.time}</div>
-                          <a
-                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activity.location)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="mt-1 block text-xs text-blue-500 hover:underline"
-                          >
-                            Open in Google Maps
-                          </a>
-                        </Popup>
-                      </Marker>
-                    );
-                  })}
-                </MapContainer>
-              ) : (
-                <div className="flex h-full flex-col items-center justify-center p-12 text-center">
-                  <MapIcon className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
-                  <h3 className="mb-2 text-lg font-semibold">Map Unavailable</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Coordinates for this trip are missing.
-                  </p>
-                </div>
-              )}
+              <div className="flex h-full flex-col items-center justify-center p-12 text-center">
+                <MapIcon className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+                <h3 className="mb-2 text-lg font-semibold">Map View</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Interactive map view is currently unavailable.
+                </p>
+                {activities && activities.length > 0 && (
+                  <div className="mt-4 w-full max-w-md space-y-2">
+                    <h4 className="font-semibold text-sm mb-2">Activity Locations:</h4>
+                    {activities.map((activity) => (
+                      <div key={activity.id} className="text-left border border-border rounded-lg p-3">
+                        <p className="font-medium text-sm">{activity.title}</p>
+                        <a
+                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activity.location)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-primary hover:underline flex items-center gap-1 mt-1"
+                        >
+                          <MapPin className="h-3 w-3" />
+                          {activity.location}
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </Card>
           </TabsContent>
 

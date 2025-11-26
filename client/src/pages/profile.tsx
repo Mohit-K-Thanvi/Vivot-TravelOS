@@ -80,13 +80,13 @@ export default function Profile() {
     <div className="min-h-screen bg-background">
       <div className="border-b border-border bg-card px-4 py-8">
         <div className="mx-auto max-w-5xl">
-          <div className="flex items-center gap-4">
-            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary text-primary-foreground">
-              <User className="h-10 w-10" />
+          <div className="flex items-center gap-3 md:gap-4">
+            <div className="flex h-14 w-14 md:h-20 md:w-20 items-center justify-center rounded-full bg-primary text-primary-foreground">
+              <User className="h-7 w-7 md:h-10 md:w-10" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold">Travel Profile</h1>
-              <p className="text-muted-foreground">
+              <h1 className="text-xl md:text-3xl font-bold">Travel Profile</h1>
+              <p className="text-xs md:text-base text-muted-foreground">
                 Your preferences help us create perfect itineraries
               </p>
             </div>
@@ -96,46 +96,46 @@ export default function Profile() {
 
       <div className="mx-auto max-w-5xl px-4 py-8">
         {/* Travel Stats */}
-        <div className="mb-8 grid gap-4 md:grid-cols-4">
+        <div className="mb-8 grid gap-3 md:gap-4 grid-cols-2 md:grid-cols-4">
           <Card>
-            <CardContent className="p-6">
+            <CardContent className="p-4 md:p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Total Trips</p>
-                  <p className="text-2xl font-bold">{travelStats.totalTrips}</p>
+                  <p className="text-lg md:text-2xl font-bold">{travelStats.totalTrips}</p>
                 </div>
                 <TrendingUp className="h-8 w-8 text-muted-foreground" />
               </div>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="p-6">
+            <CardContent className="p-4 md:p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Completed</p>
-                  <p className="text-2xl font-bold">{travelStats.completedTrips}</p>
+                  <p className="text-lg md:text-2xl font-bold">{travelStats.completedTrips}</p>
                 </div>
                 <Heart className="h-8 w-8 text-muted-foreground" />
               </div>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="p-6">
+            <CardContent className="p-4 md:p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Active</p>
-                  <p className="text-2xl font-bold">{travelStats.activeTrips}</p>
+                  <p className="text-lg md:text-2xl font-bold">{travelStats.activeTrips}</p>
                 </div>
                 <Settings className="h-8 w-8 text-muted-foreground" />
               </div>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="p-6">
+            <CardContent className="p-4 md:p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Total Spent</p>
-                  <p className="text-2xl font-bold">${travelStats.totalSpent.toFixed(0)}</p>
+                  <p className="text-lg md:text-2xl font-bold">${travelStats.totalSpent.toFixed(0)}</p>
                 </div>
                 <Utensils className="h-8 w-8 text-muted-foreground" />
               </div>
@@ -186,7 +186,7 @@ export default function Profile() {
                 ))}
               </div>
             ) : (
-              <div className="grid gap-6 md:grid-cols-2">
+              <div className="grid gap-4 md:gap-6 md:grid-cols-2">
                 <div>
                   <Label htmlFor="budget">Budget Range</Label>
                   {editMode ? (

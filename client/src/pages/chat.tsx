@@ -20,11 +20,12 @@ export default function Chat() {
 
   const sendMessageMutation = useMutation({
     mutationFn: async (content: string) => {
-      return await apiRequest<{ message: ChatMessage; trip?: Trip }>(
+      const res = await apiRequest(
         "POST",
         "/api/chat/send",
         { content }
       );
+      return await res.json();
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/chat/messages"] });
@@ -60,7 +61,7 @@ export default function Chat() {
   return (
     <div className="flex h-[calc(100vh-64px)] flex-col bg-background">
       <div className="border-b border-border px-4 py-4">
-        <h1 className="text-2xl font-bold">AI Travel Assistant</h1>
+        <h1 className="text-lg md:text-2xl font-bold">AI Travel Assistant</h1>
         <p className="text-sm text-muted-foreground">
           Tell me about your travel dreams and I'll create the perfect itinerary
         </p>
@@ -78,9 +79,8 @@ export default function Chat() {
             messages.map((message) => (
               <div
                 key={message.id}
-                className={`flex gap-3 ${
-                  message.role === "user" ? "justify-end" : "justify-start"
-                }`}
+                className={`flex gap-3 ${message.role === "user" ? "justify-end" : "justify-start"
+                  }`}
                 data-testid={`message-${message.role}`}
               >
                 {message.role === "assistant" && (
@@ -89,11 +89,10 @@ export default function Chat() {
                   </div>
                 )}
                 <Card
-                  className={`max-w-[80%] px-4 py-3 ${
-                    message.role === "user"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-card"
-                  }`}
+                  className={`max-w-[80%] px-4 py-3 ${message.role === "user"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-card"
+                    }`}
                 >
                   <p className="whitespace-pre-wrap text-sm leading-relaxed">
                     {message.content}
@@ -109,7 +108,7 @@ export default function Chat() {
           ) : (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <Bot className="mb-4 h-12 w-12 text-muted-foreground" />
-              <h2 className="mb-2 text-xl font-semibold">
+              <h2 className="mb-2 text-base md:text-xl font-semibold">
                 Start Your Travel Journey
               </h2>
               <p className="mb-6 max-w-md text-sm text-muted-foreground">
@@ -162,7 +161,7 @@ export default function Chat() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Describe your dream vacation... (e.g., 'I want a 5-day cultural trip to Paris with a budget of $2000, vegetarian food options')"
-              className="min-h-[60px] resize-none"
+              className="min-h-[60px] resize-none text-sm md:text-base"
               data-testid="input-chat-message"
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {

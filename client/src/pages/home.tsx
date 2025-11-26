@@ -122,7 +122,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section - Mindtrip.ai Style */}
-      <div className="relative h-[70vh] min-h-[500px] w-full overflow-hidden">
+      <div className="relative h-auto md:h-[70vh] min-h-[500px] w-full overflow-hidden">
         <img
           src={heroImage}
           alt="Travel destination"
@@ -130,88 +130,101 @@ export default function Home() {
         />
         <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/20 to-background" />
 
-        <div className="relative z-10 flex h-full flex-col items-center justify-center px-4">
+        <div className="relative z-10 flex h-full flex-col items-center justify-center px-4 py-24 md:py-0">
           <div className="w-full max-w-4xl text-center mb-8">
-            <h1 className="mb-4 text-4xl font-bold tracking-tight text-white md:text-6xl drop-shadow-lg">
+            <h1 className="mb-4 text-2xl font-bold tracking-tight text-white md:text-6xl drop-shadow-lg">
               Where to next?
             </h1>
-            <p className="text-xl text-white/90 drop-shadow-md">
+            <p className="text-base md:text-xl text-white/90 drop-shadow-md">
               Experience the world with VIVOT's adaptive travel engine.
             </p>
           </div>
 
           {/* Planning Widget */}
-          <Card className="w-full max-w-5xl bg-background/95 backdrop-blur-md shadow-2xl border-none">
+          <Card className="w-full max-w-5xl bg-transparent backdrop-blur-md shadow-2xl border border-white/60 text-white">
             <CardContent className="p-6">
-              <div className="grid gap-6 md:grid-cols-[1fr_1fr_1fr_1fr_auto]">
+              <div className="grid gap-6 grid-cols-1 md:grid-cols-[1fr_1fr_1fr_1fr_auto]">
 
+                {/* ORIGIN */}
                 <div className="space-y-2">
-                  <Label htmlFor="origin" className="text-foreground font-medium">From</Label>
+                  <Label htmlFor="origin" className="font-medium text-white text-xs md:text-sm">From</Label>
+
                   <div className="relative">
-                    <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/70" />
                     <Input
                       id="origin"
-                      placeholder="Current Location"
-                      className="pl-9 pr-10 border-input bg-background text-foreground"
+                      placeholder="e.g. Mumbai"
+                      className="pl-9 bg-transparent border-white/40 text-white placeholder:text-white/70 text-sm md:text-base"
                       value={origin}
                       onChange={(e) => setOrigin(e.target.value)}
                     />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                    {/* Right icon inside input */}
+                    <button
+                      type="button"
                       onClick={handleLocationClick}
                       disabled={isLocating}
-                      title="Use my location"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-0 bg-transparent"
                     >
-                      <Search className={`h-4 w-4 text-muted-foreground ${isLocating ? 'animate-spin' : ''}`} />
-                    </Button>
+                      <Search
+                        className={`h-4 w-4 text-white/70 ${isLocating ? "animate-spin" : ""}`}
+                      />
+                    </button>
                   </div>
                 </div>
 
+                {/* DESTINATION */}
                 <div className="space-y-2">
-                  <Label htmlFor="destination" className="text-foreground font-medium">To</Label>
+                  <Label htmlFor="destination" className="font-medium text-white text-xs md:text-sm">To</Label>
+
                   <div className="relative">
-                    <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/70" />
+
                     <Input
                       id="destination"
-                      placeholder="e.g., Kyoto, Japan"
-                      className="pl-9 border-input bg-background text-foreground"
+                      placeholder="e.g. Pune"
+                      className="pl-9 bg-transparent border-white/40 text-white placeholder:text-white/70 text-sm md:text-base"
                       value={destination}
                       onChange={(e) => setDestination(e.target.value)}
                     />
                   </div>
                 </div>
 
+                {/* DATE PICKER */}
                 <div className="space-y-2">
-                  <Label className="text-foreground font-medium">Dates</Label>
+                  <Label className="font-medium text-white text-xs md:text-sm">Dates</Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
-                        variant={"outline"}
+                        variant="outline"
                         className={cn(
-                          "w-full justify-start text-left font-normal border-input bg-background text-foreground",
-                          !date && "text-muted-foreground"
+                          "w-full justify-start text-left font-normal border-white/40 bg-transparent text-white text-sm md:text-base",
+                          !date && "text-white/70"
                         )}
                       >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        <CalendarIcon className="mr-2 h-4 w-4 text-white/70" />
                         {date ? format(date, "PPP") : <span>Pick a date</span>}
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
+                    <PopoverContent className="w-auto p-0 bg-white text-black rounded-md shadow-lg">
                       <Calendar
                         mode="single"
                         selected={date}
                         onSelect={setDate}
-                        disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                        disabled={(date) =>
+                          date < new Date(new Date().setHours(0, 0, 0, 0))
+                        }
                         initialFocus
                       />
                     </PopoverContent>
                   </Popover>
                 </div>
 
+                {/* BUDGET */}
                 <div className="space-y-2">
-                  <Label className="text-foreground font-medium">Budget: ${budget[0]}</Label>
+                  <Label className="font-medium text-white text-xs md:text-sm">
+                    Budget: ${budget[0]}
+                  </Label>
+
                   <div className="pt-2 px-1">
                     <Slider
                       defaultValue={[2000]}
@@ -224,10 +237,11 @@ export default function Home() {
                   </div>
                 </div>
 
+                {/* GENERATE TRIP BUTTON */}
                 <div className="flex items-end">
                   <Button
                     size="lg"
-                    className="w-full bg-primary hover:bg-primary/90 text-white font-semibold shadow-lg hover:shadow-xl transition-all"
+                    className="w-full bg-primary hover:bg-primary/90 text-white font-semibold shadow-lg hover:shadow-xl transition-all text-sm md:text-base"
                     onClick={handlePlanTrip}
                     disabled={createTripMutation.isPending}
                   >
@@ -244,11 +258,12 @@ export default function Home() {
               </div>
             </CardContent>
           </Card>
+
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="mx-auto max-w-7xl px-4 py-12 md:px-6 lg:px-8 -mt-20 relative z-20">
+      <div className="mx-auto max-w-7xl px-4 py-12 md:px-6 lg:px-8 mt-8 md:-mt-20 relative z-20">
 
         {/* Active Trip Dashboard */}
         {activeTrip && (
@@ -260,7 +275,7 @@ export default function Home() {
                     <Badge variant="outline" className="mb-2 bg-background/50 backdrop-blur text-primary border-primary/20">
                       Live Itinerary
                     </Badge>
-                    <CardTitle className="text-2xl flex items-center gap-2">
+                    <CardTitle className="text-lg md:text-2xl flex items-center gap-2">
                       {activeTrip.destination}
                       <span className="text-muted-foreground font-normal text-lg">
                         • {activeTrip.startDate}
@@ -348,7 +363,7 @@ export default function Home() {
         {/* Discoveries Section */}
         <div className="space-y-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold tracking-tight">Trending Destinations</h2>
+            <h2 className="text-lg md:text-2xl font-bold tracking-tight">Trending Destinations</h2>
             <Link href="/discover">
               <Button variant="ghost" className="gap-1">
                 View all <TrendingUp className="h-4 w-4" />
@@ -375,8 +390,8 @@ export default function Home() {
                   <div className="p-4">
                     <div className="flex items-start justify-between mb-2">
                       <div>
-                        <h3 className="font-semibold text-lg leading-none mb-1">{discovery.title}</h3>
-                        <p className="text-sm text-muted-foreground flex items-center gap-1">
+                        <h3 className="font-semibold text-sm md:text-lg leading-none mb-1">{discovery.title}</h3>
+                        <p className="text-xs md:text-sm text-muted-foreground flex items-center gap-1">
                           <MapPin className="h-3 w-3" /> {discovery.location}
                         </p>
                       </div>
@@ -384,7 +399,7 @@ export default function Home() {
                         {discovery.sentiment}
                       </Badge>
                     </div>
-                    <p className="text-sm text-muted-foreground line-clamp-2">
+                    <p className="text-xs md:text-sm text-muted-foreground line-clamp-2">
                       {discovery.description}
                     </p>
                   </div>
