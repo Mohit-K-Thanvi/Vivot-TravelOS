@@ -56,8 +56,8 @@ export function AppSidebar() {
       <SidebarHeader className="p-4">
         <Link href="/" onClick={handleLinkClick}>
           <div className="flex items-center gap-2 cursor-pointer" data-testid="link-logo">
-            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
-              <Plane className="h-5 w-5" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-md overflow-hidden">
+              <img src="/favicon.jpg" alt="VIVOT Logo" className="h-8 w-8 object-cover" />
             </div>
             <div>
               <h2 className="text-lg font-bold">VIVOT</h2>
