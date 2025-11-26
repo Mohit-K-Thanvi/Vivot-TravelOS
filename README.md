@@ -16,18 +16,13 @@ An AI-powered travel planning platform that creates personalized, adaptive itine
 ### Frontend
 - **React** with TypeScript
 - **Vite** for fast development and building
-- **Wouter** for routing
-- **TanStack Query** for server state management
 - **shadcn/ui** components with Radix UI primitives
 - **Tailwind CSS** for styling
 - **Framer Motion** for animations
 
 ### Backend
 - **Express.js** with TypeScript
-- **Drizzle ORM** for database operations
-- **PostgreSQL** (via Neon serverless)
 - **Google Gemini AI** for conversational AI and trip generation
-- **dotenv** for environment configuration
 
 ## 📋 Prerequisites
 
@@ -35,7 +30,6 @@ Before running this project, make sure you have the following installed:
 
 - **Node.js** (v18 or higher)
 - **npm** (comes with Node.js)
-- **PostgreSQL database** (or Neon serverless account)
 - **Google Gemini API key**
 
 ## 🚀 Setup Instructions
@@ -43,7 +37,7 @@ Before running this project, make sure you have the following installed:
 ### 1. Clone the Repository
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/GreenThenics/Vivot-TravelOS.git
 cd VivotTravelOS
 ```
 
@@ -61,9 +55,6 @@ Create a `.env` file in the root directory with the following variables:
 # Google Gemini AI API Key (Required)
 GEMINI_API_KEY=your_gemini_api_key_here
 
-# Database Connection (Required if using database)
-DATABASE_URL=your_postgresql_connection_string
-
 # Server Port (Optional, defaults to 5000)
 PORT=5000
 
@@ -74,19 +65,8 @@ NODE_ENV=development
 **Important:** 
 - Replace `your_gemini_api_key_here` with your actual Google Gemini API key
 - Get your API key from: https://aistudio.google.com/app/apikey
-- If using a database, replace `your_postgresql_connection_string` with your PostgreSQL connection string
 
-### 4. Database Setup (Optional)
-
-If you're using a PostgreSQL database, run the migration:
-
-```bash
-npm run db:push
-```
-
-This will create the necessary tables in your database.
-
-### 5. Run the Application
+### 4. Run the Application
 
 #### For Development:
 
@@ -116,7 +96,6 @@ npm start
 | `npm run build` | Build for production |
 | `npm start` | Start production server (cross-platform) |
 | `npm run check` | Run TypeScript type checking |
-| `npm run db:push` | Push database schema changes |
 
 ## 🌐 Running on Different Machines
 
@@ -134,7 +113,7 @@ npm run build
 npm start
 ```
 
-**Works on:** Windows, macOS, and Linux! 🎉
+**Works on:** Windows, macOS, and Linux! 
 
 **2. Missing Dependencies**
 ```bash
@@ -143,12 +122,7 @@ rm -rf node_modules package-lock.json
 npm install
 ```
 
-**3. Database Connection Issues**
-- Verify your `DATABASE_URL` is correct
-- Ensure your PostgreSQL server is running
-- Check firewall settings
-
-**4. API Key Issues**
+**3. API Key Issues**
 - Verify your `GEMINI_API_KEY` is correctly set in `.env`
 - Check API key has proper permissions
 - Ensure no extra spaces in the `.env` file
@@ -161,7 +135,7 @@ VivotTravelOS/
 │   ├── src/
 │   │   ├── components/    # React components
 │   │   ├── pages/        # Page components
-│   │   └── main.tsx      # Entry point
+│   │   └── home.tsx      # Entry point
 │   └── index.html
 ├── server/                # Backend Express server
 │   ├── app.ts           # Express app configuration
@@ -171,7 +145,6 @@ VivotTravelOS/
 │   ├── index-dev.ts     # Development entry point
 │   └── index-prod.ts    # Production entry point
 ├── shared/              # Shared types and schemas
-├── .env                 # Environment variables (create this)
 ├── package.json         # Dependencies and scripts
 ├── vite.config.ts       # Vite configuration
 ├── tailwind.config.ts   # Tailwind CSS configuration
